@@ -26,14 +26,14 @@ extern "C" {
 
 	bool NVSEPlugin_Load(const NVSEInterface *nvse) {
 		WriteRelJump(0x79AC28, (UInt32)HourConversionHook);
-		WriteRelJump(0x79AC05, (UInt32)StringFmtHook);
-		WriteRelJump(0x79AC55, (UInt32)AMPMHook);
+		WriteRelJump(0x79AC05, (UInt32)AMPMHook);
+		WriteRelJump(0x79AC55, (UInt32)StringFmtHook);
 		return true;
 	}
 
 };
 
-_declspec (naked) void StringFmtHook() {
+_declspec (naked) void AMPMHook() {
 	static const UInt32 retnAddr = 0x79AC0D;
 	static const UInt32 convertAddr = 0xEC62C0;
 	static const char* pm = "PM";
@@ -42,11 +42,11 @@ _declspec (naked) void StringFmtHook() {
 		fld [ebp - 0x18]
 		call convertAddr
 		cmp eax, 12
-		jge itspmtime
+		jge pmtime
 		push am
 		mov [ebp-0x28], eax
 		jmp retnAddr
-		itspmtime:
+		pmtime:
 			push pm
 			mov[ebp - 0x28], eax
 			jmp retnAddr
@@ -74,7 +74,7 @@ _declspec (naked) void HourConversionHook() {
 	}
 }
 
-_declspec (naked) void AMPMHook() {
+_declspec (naked) void StringFmtHook() {
 	static const UInt32 retnAddr = 0x79AC5A;
 	static const UInt32 fmt = (UInt32)"%s, %d:%02d %s";
 	__asm {
