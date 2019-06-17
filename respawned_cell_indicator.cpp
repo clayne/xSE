@@ -63,22 +63,22 @@ _declspec(naked) void CellExpiredHook() {
 }
 
 bool __fastcall checkExpired(ExtraTeleport::Data* xTeleport) {
-			if (xTeleport) {
-				TESObjectCELL* cell = xTeleport->linkedDoor->parentCell;
-				if (cell) {
-				float hoursToRespawn = 0;
-				float detachTime = 0;
-				float gameHoursPassed = 0;
-				detachTime = GetDetachTime(cell);
-				if (detachTime == 0) return false;
-				else if (detachTime == -1) return true;
-				else {
-					hoursToRespawn = (float)*(UInt32*)ThisStdCall(0x43D4D0, (char*)0x11CA160); //INISettingCollection_getValue(&gs_iHoursToRespawnCell)
-					gameHoursPassed = (float)ThisStdCall(0x867E30, (UInt32*)0x11DE7B8); //TESGlobal__GetHoursPassed(g_gameTimeGlobals)
-					if ((gameHoursPassed - detachTime) > hoursToRespawn) return true;
-				}
+	if (xTeleport) {
+		TESObjectCELL* cell = xTeleport->linkedDoor->parentCell;
+		if (cell) {
+		float hoursToRespawn = 0;
+		float detachTime = 0;
+		float gameHoursPassed = 0;
+		detachTime = GetDetachTime(cell);
+		if (detachTime == 0) return false;
+		else if (detachTime == -1) return true;
+		else {
+			hoursToRespawn = (float)*(UInt32*)ThisStdCall(0x43D4D0, (char*)0x11CA160); //INISettingCollection_getValue(&gs_iHoursToRespawnCell)
+			gameHoursPassed = (float)ThisStdCall(0x867E30, (UInt32*)0x11DE7B8); //TESGlobal__GetHoursPassed(g_gameTimeGlobals)
+			if ((gameHoursPassed - detachTime) > hoursToRespawn) return true;
 			}
-		}		
+		}
+	}		
 	return false;
 }
 
