@@ -21,7 +21,7 @@ PlayerCharacter *g_thePlayer = NULL;
 InterfaceManager *g_interfaceManager = NULL;
 HMODULE CSixHandle;
 
-static const char* APPLICATION_ID = "591610741350465537";
+static const char* APPLICATION_ID;
 int64_t StartTime;
 int SendPresence = 1;
 
