@@ -13,18 +13,18 @@
 #include "internal/decoding.h"
 #include <time.h>
 #include "discord_rpc.h"
-#define PLUGIN_VERSION 1
+#define PLUGIN_VERSION 2 // 1.1
 #define REG_CMD(name) nvse->RegisterCommand(&kCommandInfo_##name);
 
 NVSEStringVarInterface *StrIfc = NULL;
 PlayerCharacter *g_thePlayer = NULL;
 InterfaceManager *g_interfaceManager = NULL;
+UInt32 locationNameID = NULL;
 HMODULE CSixHandle;
 
 static const char* APPLICATION_ID;
 int64_t StartTime;
 int SendPresence = 1;
-
 bool bInitialized = 0;
 bool bShowCaps = false;
 bool bShowLevel = false;
@@ -36,6 +36,7 @@ bool bShowHacking = false;
 bool bShowLockpicking = false;
 bool bShowLocation = false;
 bool bShowSleeping = false;
+bool bShowPipboy = false;
 static void UpdateDiscordPresence(char* state, char* details)
 {
 	if (bInitialized) {

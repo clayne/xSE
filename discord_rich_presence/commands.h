@@ -27,12 +27,12 @@ bool Cmd_UpdateRPC_Execute(COMMAND_ARGS) {
 	int menumode = 0;
 	char stateStr[256] = "";
 	char detailsStr[256] = "";
-	UInt32 locationNameID = NULL;
 	if (ExtractArgs(EXTRACT_ARGS, &caps, &level, &health, &menumode) && bInitialized) {
 		
 		BuildStateStr(caps, level, health, stateStr);
 		if (bShowLocation) {
-			locationNameID = StrIfc->CreateString("Mojave Wasteland", scriptData);
+			if (!locationNameID)
+				locationNameID = StrIfc->CreateString("Mojave Wasteland", scriptData);
 			const char* str = StrIfc->GetString(locationNameID);
 			GetCellName(str);
 		}
@@ -98,6 +98,13 @@ void BuildDetailsStr(int menumode, UInt32 id, char* detailsStr) {
 			break;
 		case 1083:
 			if (bShowGambling) strcat(buffer, "Playing caravan");
+			break;
+		case 1:
+		case 1002:
+		case 1003:
+		case 1023:
+		case 1035:
+			if (bShowPipboy) strcat(buffer, "Browsing Pip-Boy");
 			break;
 		default:
 			break;

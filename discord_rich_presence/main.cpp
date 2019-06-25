@@ -44,7 +44,7 @@ bool NVSEPlugin_Query(const NVSEInterface *nvse, PluginInfo *info)
 			return false;
 		}
 	};
-	_MESSAGE("DiscordRCP Loaded succesfully.");
+	_MESSAGE("DiscordRPC version %d passed NVSE Query.", info->infoVersion);
 	return true;
 }
 
@@ -63,12 +63,14 @@ bool NVSEPlugin_Load(const NVSEInterface *nvse)
 	bShowLockpicking = GetPrivateProfileIntA("GENERAL", "bShowLockpicking", 0, filename);
 	bShowLocation = GetPrivateProfileIntA("GENERAL", "bShowLocation", 0, filename);
 	bShowSleeping = GetPrivateProfileIntA("GENERAL", "bShowSleeping", 0, filename);
+	bShowPipboy = GetPrivateProfileIntA("GENERAL", "bShowPipboy", 0, filename);
 	((NVSEMessagingInterface*)nvse->QueryInterface(kInterface_Messaging))->RegisterListener(nvse->GetPluginHandle(), "NVSE", MessageHandler);
 	StrIfc = (NVSEStringVarInterface*)nvse->QueryInterface(kInterface_StringVar);
 	nvse->SetOpcodeBase(0x37F0);
 	REG_CMD(InitRPC);
 	REG_CMD(IsRPCInitialized)
 	REG_CMD(UpdateRPC);
+	_MESSAGE("DiscordRPC loaded.");
 	return true;
 }
 void MessageHandler(NVSEMessagingInterface::Message* msg)
