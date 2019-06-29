@@ -33,9 +33,10 @@ extern "C" {
 //credits to JazzIsParis
 void __fastcall ClearActiveQuest(PlayerCharacter* g_thePlayer)
 {
-	if (g_thePlayer->quest != NULL && g_thePlayer->questTargetList.Count() != 0) { //6C4
+	if (g_thePlayer->quest != NULL) { 
 		g_thePlayer->quest = NULL;
-		g_thePlayer->questTargetList.RemoveAll();
+		if (g_thePlayer->questTargetList.Count() != 0) //6C4
+			g_thePlayer->questTargetList.RemoveAll();
 	}
 }
 
