@@ -109,7 +109,7 @@ bool isEncumbered(double itemWeight) {
 	PlayerCharacter* g_thePlayer = *(PlayerCharacter**)0x11DEA3C;
 	float avCarryWeight = g_thePlayer->avOwner.GetActorValue(13);
 	float avInventoryWeight = g_thePlayer->avOwner.GetActorValue(46);
-	return (avInventoryWeight + itemWeight) > avCarryWeight;
+	return (avInventoryWeight + itemWeight) >= (avCarryWeight+1);
 }
 
 __declspec(naked) void ValueHook() {
