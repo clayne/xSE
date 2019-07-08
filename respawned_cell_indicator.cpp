@@ -37,49 +37,45 @@ bool NVSEPlugin_Query(const NVSEInterface *nvse, PluginInfo *info)
 
 bool NVSEPlugin_Load(const NVSEInterface *nvse)
 {
-	WriteRelJump(0x79DA63, UInt32(CellExpiredHook));
+	WriteRelJump(0x79DA6E, UInt32(CellExpiredHook));
 	return true;
 }
-_declspec(naked) void CellExpiredHook() {
-	static const UInt32 retnAddr = 0x79DA74;
-	static const UInt32 getExtraTeleportData = 0x568E50;
-	_asm {
-		mov ecx, [ebp - 0x94]
-		call getExtraTeleportData
-		mov [ebp-0x98], eax
-		mov ecx, [ebp-0x98]
-		call checkExpired
-		test al, al
-		jz done
-		mov ecx, [ebp - 0x9C] // tile
-		push 2
-		push kTileValue_systemcolor
-		mov eax, 0x700320 // Tile__PropagateFloatValue
-		call eax
-		jmp done
-		done :
-			jmp retnAddr
+void __fastcall DoCellColorIcon(Tile* tile, ExtraTeleport::Data* xTeleport) {
+	if (!xTeleport) return;
+
+	TESObjectCELL* cell = xTeleport->linkedDoor->parentCell;
+	if (!cell) return;
+
+	int detachTime = GetDetachTime(cell);
+
+	if (detachTime)
+	{
+		int hoursToRespawn = *(int*)0x11CA164;
+		int gameHoursPassed = ThisStdCall(0x867E30, (UInt32*)0x11DE7B8); //TESGlobal__GetHoursPassed(g_gameTimeGlobals);
+		if ((gameHoursPassed - detachTime) > hoursToRespawn)
+		{
+			/* respawned cell */
+			ThisStdCall(0x700320, tile, kTileValue_systemcolor, 2);  // Tile__PropagateFloatValue
+		}
+	}
+	else
+	{
+		/* unvisited cell */
+		ThisStdCall(0x700320, tile, kTileValue_systemcolor, 0);  // Tile__PropagateFloatValue
 	}
 }
 
-bool __fastcall checkExpired(ExtraTeleport::Data* xTeleport) {
-	if (xTeleport) {
-		TESObjectCELL* cell = xTeleport->linkedDoor->parentCell;
-		if (cell) {
-		float hoursToRespawn = 0;
-		float detachTime = 0;
-		float gameHoursPassed = 0;
-		detachTime = GetDetachTime(cell);
-		if (detachTime == 0) return false;
-		else if (detachTime == -1) return true;
-		else {
-			hoursToRespawn = (float)*(UInt32*)ThisStdCall(0x43D4D0, (char*)0x11CA160); //INISettingCollection_getValue(&gs_iHoursToRespawnCell)
-			gameHoursPassed = (float)ThisStdCall(0x867E30, (UInt32*)0x11DE7B8); //TESGlobal__GetHoursPassed(g_gameTimeGlobals)
-			if ((gameHoursPassed - detachTime) > hoursToRespawn) return true;
-			}
-		}
-	}		
-	return false;
+_declspec(naked) void CellExpiredHook() {
+	static const UInt32 retnAddr = 0x79DA74;
+	_asm {
+	originalCode:
+		mov[ebp - 0x98], eax
+
+			mov ecx, [ebp - 0x9C] // tile
+			mov edx, eax
+			call DoCellColorIcon
+			jmp retnAddr
+	}
 }
 
 __declspec(naked) SInt32 __fastcall GetDetachTime(TESObjectCELL *cell) {
