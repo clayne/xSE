@@ -39,7 +39,6 @@ int bDisableMapMarkerPopups = 0;
 int bShowUnvisitedCells = 0;
 int bShowRespawnedCells = 0;
 int bFixDisintegrationsStat = 0;
-
 void(*ApplyPerkModifiers)(UInt32 entryPointID, TESObjectREFR *perkOwner, void *arg3, ...) = (void(*)(UInt32, TESObjectREFR*, void*, ...))0x5E58F0;
 
 __declspec(naked) void PipboyClockHook() {
@@ -249,7 +248,7 @@ _declspec(naked) void containerRespawnsHook1() {
 		shr eax, 1
 		and eax, 1
 		test al, al
-		jnz noRespawn
+		jz noRespawn
 
 		push text
 		jmp retnAddr
