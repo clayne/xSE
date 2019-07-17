@@ -64,29 +64,35 @@ bool NVSEPlugin_Load(const NVSEInterface *nvse)
 	bShowLocation = GetPrivateProfileIntA("GENERAL", "bShowLocation", 0, filename);
 	bShowSleeping = GetPrivateProfileIntA("GENERAL", "bShowSleeping", 0, filename);
 	bShowPipboy = GetPrivateProfileIntA("GENERAL", "bShowPipboy", 0, filename);
+	bShowReading = GetPrivateProfileIntA("GENERAL", "bShowReading", 0, filename);
+	bShowInMainMenu = GetPrivateProfileIntA("GENERAL", "bShowInMainMenu", 0, filename);
+	bAllowCustomActions = GetPrivateProfileIntA("GENERAL", "bAllowCustomStrings", 0, filename);
 	((NVSEMessagingInterface*)nvse->QueryInterface(kInterface_Messaging))->RegisterListener(nvse->GetPluginHandle(), "NVSE", MessageHandler);
-	StrIfc = (NVSEStringVarInterface*)nvse->QueryInterface(kInterface_StringVar);
 	nvse->SetOpcodeBase(0x37F0);
-	REG_CMD(InitRPC);
-	REG_CMD(IsRPCInitialized)
-	REG_CMD(UpdateRPC);
+	REG_CMD(SendRPCAction);
+	REG_CMD(RemoveRPCAction);
 	_MESSAGE("DiscordRPC loaded.");
 	return true;
 }
+
+
 void MessageHandler(NVSEMessagingInterface::Message* msg)
 {
-
+	HMODULE jip;
+	MainLoopAddCallbackExProc MainLoopAddCallbackEx;
 	switch (msg->type) {
-		case NVSEMessagingInterface::kMessage_ExitGame_Console:
-		case NVSEMessagingInterface::kMessage_ExitGame:
-			if (bInitialized) {
-				_MESSAGE("Closing connection");
-				Discord_Shutdown();
-				bInitialized = 0;
-			}
-			break;
-		default:
-			break;
+	case NVSEMessagingInterface::kMessage_ExitGame_Console:
+	case NVSEMessagingInterface::kMessage_ExitGame:
+		Discord_Shutdown();
+		g_isInitialized = 0;
+		break;
+	case NVSEMessagingInterface::kMessage_PostPostLoad:
+		jip = GetModuleHandleA("jip_nvse.dll");
+		MainLoopAddCallbackEx = (MainLoopAddCallbackExProc)GetProcAddress(jip, "MainLoopAddCallbackEx");
+		MainLoopAddCallbackEx(DiscordInit, NULL, 1, 10);
+		MainLoopAddCallbackEx(UpdateRPC, NULL, 0, 1000);
+		break;
+	default:
+		break;
 	}
-
 }

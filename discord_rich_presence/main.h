@@ -15,17 +15,18 @@
 #include "discord_rpc.h"
 #define PLUGIN_VERSION 2 // 1.1
 #define REG_CMD(name) nvse->RegisterCommand(&kCommandInfo_##name);
+typedef void(*MainLoopAddCallbackExProc)(void* cmdPtr, void* thisObj, UInt32 callCount, UInt32 callDelay);
 
-NVSEStringVarInterface *StrIfc = NULL;
 PlayerCharacter *g_thePlayer = NULL;
 InterfaceManager *g_interfaceManager = NULL;
-UInt32 locationNameID = NULL;
+StartMenu *g_startMenu = NULL;
+TESForm* g_capsItem;
 HMODULE CSixHandle;
-
+void BuildStateStr(char* stateStr), BuildDetailsStr(char* detailsStr), UpdateRPC();
+double __cdecl GetPlayerLevel(), GetPlayerHealthPercentage();
 static const char* APPLICATION_ID;
 int64_t StartTime;
-int SendPresence = 1;
-bool bInitialized = 0;
+bool g_isInitialized = 0;
 bool bShowCaps = false;
 bool bShowLevel = false;
 bool bShowName = false;
@@ -36,28 +37,25 @@ bool bShowHacking = false;
 bool bShowLockpicking = false;
 bool bShowLocation = false;
 bool bShowSleeping = false;
+bool bShowReading = false;
 bool bShowPipboy = false;
+bool bShowInMainMenu = false;
+bool bAllowCustomActions = false;
+char g_customString[256] = { 0 };
 static void UpdateDiscordPresence(char* state, char* details)
 {
-	if (bInitialized) {
-		if (SendPresence) {
-			DiscordRichPresence discordPresence;
-			memset(&discordPresence, 0, sizeof(discordPresence));
-			if (strlen(state) > 0)
-			discordPresence.state = state;
-			if (strlen(details) > 0)
-			discordPresence.details = details;
-			discordPresence.startTimestamp = StartTime;
-			discordPresence.largeImageKey = "fnv-big";
-			discordPresence.instance = 0;
-			Discord_UpdatePresence(&discordPresence);
-		//	_MESSAGE("Updating Rich Presence");
-		}
-		else {
-			Discord_ClearPresence();
-		}
-		Discord_RunCallbacks();
-	}
+	DiscordRichPresence discordPresence;
+	memset(&discordPresence, 0, sizeof(discordPresence));
+	if (strlen(state))
+		discordPresence.state = state;
+	if (strlen(details))
+		discordPresence.details = details;
+	discordPresence.startTimestamp = StartTime;
+	discordPresence.largeImageKey = "fnv-big";
+	discordPresence.instance = 0;
+	Discord_UpdatePresence(&discordPresence);
+	Discord_RunCallbacks();
+	
 }
 
 static void handleDiscordReady(const DiscordUser* connectedUser)
@@ -77,7 +75,11 @@ void handleDiscordError(int errcode, const char* message)
 
 static void DiscordInit()
 {
-	if (!bInitialized) {
+	if (!g_isInitialized) {
+		g_thePlayer = *(PlayerCharacter**)0x11DEA3C;
+		g_interfaceManager = *(InterfaceManager**)0x11D8A80;
+		g_startMenu = *(StartMenu**)0x11DAAC0;
+		g_capsItem = LookupFormByID(0xF);
 		_MESSAGE("Initializing connection to discord");
 		DiscordEventHandlers handlers;
 		memset(&handlers, 0, sizeof(handlers));
@@ -86,19 +88,10 @@ static void DiscordInit()
 		handlers.disconnected = handleDiscordDisconnected;
 		Discord_Initialize(APPLICATION_ID, &handlers, 0, NULL);
 		StartTime = time(0);
-		bInitialized = 1;
-		g_thePlayer = *(PlayerCharacter**)0x11DEA3C;
-		g_interfaceManager = *(InterfaceManager**)0x11D8A80;
+		g_isInitialized = 1;
+		
 	}
 }
-
-ParamInfo kParams_TwoInts_OneFloat_OneInt[4] =
-{
-	{ "Integer", kParamType_Integer, 0 },
-	{"Integer", kParamType_Integer, 0 },
-	{ "Float", kParamType_Float, 0 },
-	{ "Integer", kParamType_Integer, 0 }
-};
 
 UInt32 InterfaceManager::GetTopVisibleMenuID()
 {
