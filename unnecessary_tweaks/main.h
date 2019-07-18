@@ -20,15 +20,16 @@ HMODULE CSixHandle;
 void writePatches();
 void handleIniOptions();
 void patchPipboyClock(), patchSleepWaitClock(), patchPickupPrompt(), enableDeselectQuests(),
-enableContainerRespawnsWarning(), disableMapMarkerPopups(), showUnvisitedOrRespawnedCells(), 
-fixDisintegrationsStat(), patchDateFormat();
+enableContainerRespawnsWarning(), disableMapMarkerPopups(), showUnvisitedOrRespawnedCells(),
+fixDisintegrationsStat(), patchDateFormat(), hideEquippedItemsInContainers(), hideEquippedItemsInBarter(),
+patchFoodWornOffMessage();
 double __fastcall ModifyLightItems(double itemWeight);
 bool fmod_d(double weight);
 float __fastcall GetExtraCount(TESObjectREFR* crosshairRef);
 bool isEncumbered(double itemWeight);
 bool __fastcall CheckType(TESObjectREFR* crosshairRef);
 SInt32  __fastcall GetDetachTime(TESObjectCELL *cell);
-
+bool __fastcall isFood(MagicItem* magicItem);
 int bClockMode = 0;
 int bDateFormat = 0;
 int bPatchPickupPrompt = 0;
@@ -38,6 +39,9 @@ char sWarningText[260];
 int bDisableMapMarkerPopups = 0;
 int bShowUnvisitedCells = 0;
 int bShowRespawnedCells = 0;
+int bHideEquippedItemsInContainers = 0;
+int bHideEquippedItemsInBarter = 0;
+int bNoFoodWornOffMessage = 0;
 int bFixDisintegrationsStat = 0;
 void(*ApplyPerkModifiers)(UInt32 entryPointID, TESObjectREFR *perkOwner, void *arg3, ...) = (void(*)(UInt32, TESObjectREFR*, void*, ...))0x5E58F0;
 
@@ -123,7 +127,30 @@ __declspec(naked) void WeightHook() {
 			jmp retnAddr
 	}
 }
-
+__declspec(naked) void WornOffHook() {
+	static const UInt32 retnAddr = 0x823F29;
+	static const UInt32 skipAddr = 0x823F49;
+	static const UInt32 getName = 0x408DA0;
+	__asm {
+		mov ecx, [ebp - 0x20]
+		call isFood
+		test al, al
+		jnz skip
+		mov ecx, [ebp - 0x20]
+		call getName
+		jmp retnAddr
+		skip:
+			mov [ebp-0x25], 0
+			jmp skipAddr
+	}
+}
+bool __fastcall isFood(MagicItem* magicItem) {
+	TESForm* mgForm = DYNAMIC_CAST(magicItem, MagicItem, TESForm);
+	BGSEquipType* pEquipType = DYNAMIC_CAST(mgForm, TESForm, BGSEquipType);
+	if (pEquipType) {
+		return (pEquipType->equipType == 12);
+	}
+}
 double __fastcall ModifyLightItems(double itemWeight) {
 	float perkMod = -1;
 	double fPackRatThreshold = -1, fPackRatModifier = -1;
@@ -378,5 +405,40 @@ _declspec (naked) void CriticalStage24Hook() {
 		call callAddr
 		jmp retnAddr
 
+	}
+}
+__declspec (naked) void ContainerMenuFilterHook() {
+	static const UInt32 retnAddr = 0x75E857;
+	static const UInt32 hideAddr = 0x75E850;
+	static const UInt32 getWorn = 0x4BDDD0;
+	__asm {
+		push    0
+		mov     ecx, [ebp + 0x08]
+		call    getWorn
+		movzx   edx, al
+		test    edx, edx
+		jnz hide
+		mov [ebp-0x30], 0
+		jmp retnAddr
+		hide:
+			jmp hideAddr
+	}
+}
+
+__declspec (naked) void BarterMenuFilterHook() {
+	static const UInt32 retnAddr = 0x730668;
+	static const UInt32 hideAddr = 0x730661;
+	static const UInt32 getWorn = 0x4BDDD0;
+	__asm {
+		push    0
+		mov     ecx, [ebp + 0x08]
+		call    getWorn
+		movzx   edx, al
+		test    edx, edx
+		jnz hide
+		mov[ebp - 0x30], 0
+		jmp retnAddr
+		hide :
+		jmp hideAddr
 	}
 }

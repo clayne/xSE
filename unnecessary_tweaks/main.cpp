@@ -62,7 +62,10 @@ void handleIniOptions() {
 	bDisableMapMarkerPopups = ini.GetOrCreateInt("Tweaks", "bDisableMapMarkerPopups", 0, "; Disables confirmation pop-ups when setting or removing map markers");
 	bShowUnvisitedCells = ini.GetOrCreateInt("Tweaks", "bShowUnvisitedCells", 0, "; Displays unvisited cells in white color on local map");
 	bShowRespawnedCells = ini.GetOrCreateInt("Tweaks", "bShowRespawnedCells", 0, "; Displays respawned cells in red color on local map - by default, all interior cells respawn every 3 days");
+	bHideEquippedItemsInContainers = ini.GetOrCreateInt("Tweaks", "bHideEquippedItemsInContainers", 0, "; Hides equipped items in container menu");
+	bHideEquippedItemsInBarter = ini.GetOrCreateInt("Tweaks", "bHideEquippedItemsInBarter", 0, "; Hides equipped items when bartering");
 	bFixDisintegrationsStat = ini.GetOrCreateInt("Bugfixes", "bFixDisintegrationsStat", 1, "; Fixes a bug that makes any ash piles increase Enemies Disintegrated stat upon entering a cell");
+	bNoFoodWornOffMessage = ini.GetOrCreateInt("Tweaks", "bNoFoodWornOffMessage", 0, "; Disables \"Worn Off\" message for food");
 	ini.SaveFile(iniPath, 0);
 }
 
@@ -75,8 +78,20 @@ void writePatches() {
 	if (bDisableMapMarkerPopups) disableMapMarkerPopups();
 	if (bShowUnvisitedCells || bShowRespawnedCells) showUnvisitedOrRespawnedCells();
 	if (bFixDisintegrationsStat) fixDisintegrationsStat();
+	if (bHideEquippedItemsInBarter) hideEquippedItemsInBarter();
+	if (bHideEquippedItemsInContainers) hideEquippedItemsInContainers();
+	if (bNoFoodWornOffMessage) patchFoodWornOffMessage();
+}
+void patchFoodWornOffMessage() {
+	WriteRelJump(0x823F21, UInt32(WornOffHook));
+}
+void hideEquippedItemsInContainers() {
+	WriteRelJump(0x75E847, UInt32(ContainerMenuFilterHook));
 }
 
+void hideEquippedItemsInBarter() {
+	WriteRelJump(0x730658, UInt32(BarterMenuFilterHook));
+}
 void patchSleepWaitClock() {
 	SafeWrite8(0x7C0093, 0xEB);
 	SafeWrite8(0x7C00B2, 0xEB);
