@@ -40,13 +40,13 @@ bool NVSEPlugin_Load(const NVSEInterface *nvse)
 
 void handleIniOptions() {
 	char iniPath[MAX_PATH];
-	GetModuleFileNameA(CSixHandle, iniPath, MAX_PATH);
-	strcpy_s((char*)(strrchr(iniPath, '\\') + 1), MAX_PATH, INI_NAME);
+	GetModuleFileNameA(NULL, iniPath, MAX_PATH);
+	strcpy((char*)(strrchr(iniPath, '\\') + 1),  "Data\\nvse\\plugins\\unnecessary_tweaks.ini");
 	CSimpleIniA ini;
 	ini.SetUnicode();
 	ini.LoadFile(iniPath);
 	bClockMode = ini.GetOrCreateInt("Tweaks", "bClockMode", 0, "; Clock mode for Pip-Boy and Sleep Wait Menu - 0 is 12-hour clock, 1 is 24-hour clock");
-	bDateFormat = ini.GetOrCreateInt("Tweaks", "bDateFormat", 0, "; Date format for Pip-Boy and Sleep Wait Menu - 0 is MM.DD.YY, 1 is DD.MM.YY");
+	bDateFormat = ini.GetOrCreateInt("Tweaks", "bDateFormat", 0, "; Date format for Pip-Boy and Sleep Wait Menu - 0 is MM.DD.YY, 1 is DD.MM.YY, 2 is YY.MM.DD");
 	bPatchPickupPrompt = ini.GetOrCreateInt("Tweaks", "bPatchPickupPrompt", 0, "; Adds the following features to the pickup prompt:\n"
 		";- If you pick up a stack of items, Weight and Value are multiplied by the number of items in it\n"
 		";- If an item is going to over-encumber you, Weight is displayed in red\n"
@@ -66,6 +66,8 @@ void handleIniOptions() {
 	bHideEquippedItemsInBarter = ini.GetOrCreateInt("Tweaks", "bHideEquippedItemsInBarter", 0, "; Hides equipped items when bartering");
 	bFixDisintegrationsStat = ini.GetOrCreateInt("Bugfixes", "bFixDisintegrationsStat", 1, "; Fixes a bug that makes any ash piles increase Enemies Disintegrated stat upon entering a cell");
 	bNoFoodWornOffMessage = ini.GetOrCreateInt("Tweaks", "bNoFoodWornOffMessage", 0, "; Disables \"Worn Off\" message for food");
+	bFixPerkMenu = ini.GetOrCreateInt("Bugfixes", "bFixPerkMenu", 1, "; Fixes a bug in Perk menu that made it hide 3rd perk requirement\n"
+		"; Additionally removes commas and  \"--\" symbols when there is only a Level requirement");
 	ini.SaveFile(iniPath, 0);
 }
 
@@ -81,6 +83,7 @@ void writePatches() {
 	if (bHideEquippedItemsInBarter) hideEquippedItemsInBarter();
 	if (bHideEquippedItemsInContainers) hideEquippedItemsInContainers();
 	if (bNoFoodWornOffMessage) patchFoodWornOffMessage();
+	if (bFixPerkMenu) patchLevelUpMenu();
 }
 void patchFoodWornOffMessage() {
 	WriteRelJump(0x823F21, UInt32(WornOffHook));
@@ -102,10 +105,14 @@ void patchPipboyClock() {
 	WriteRelJump(0x79AC55, UInt32(PipboyClockHook));
 }
 void patchDateFormat() {
-	SafeWriteBuf(0x8679C8, "\x40\x90\x50\x90", 4);
-	SafeWriteBuf(0x8679D4, "\x90\x90\x90", 3); 
-	WriteRelCall(0x8679C3, 0x867D20);
-	WriteRelCall(0x8679CF, 0x867D60);
+	if (bDateFormat == 1) {
+		SafeWriteBuf(0x8679C8, "\x40\x90\x50\x90", 4);
+		SafeWriteBuf(0x8679D4, "\x90\x90\x90", 3);
+		WriteRelCall(0x8679C3, 0x867D20);
+		WriteRelCall(0x8679CF, 0x867D60);
+	}
+	else if (bDateFormat == 2)
+		WriteRelJump(0x8679AE, UInt32(DateFormatYYMMDDHook));
 }
 void enableDeselectQuests() {
 	WriteRelJump(0x7970A1, UInt32(QuestSelectHook));
@@ -139,3 +146,18 @@ void fixDisintegrationsStat() {
 	WriteRelJump(0x8A1B2C, (UInt32)CriticalStage3Hook); // critical stage 3 jumps to IncPCMiscStat
 	WriteRelJump(0x8A1B5E, (UInt32)CriticalStage24Hook); // critical stage 2 or 4 skips IncPCMiscStat
 }
+
+void patchLevelUpMenu() {
+	WriteRelJump(0x5EBF8F, 0x5EBFA4); // removes "--"
+	WriteRelJump(0x5EBF40, 0x5EBF55); // removes commas for empty conditions
+	PatchMemoryNop(0x5EBC80, 6); // fixes broken counter for condition loop
+	PatchMemoryNop(0x5EBC86, 6);// fixes broken counter for condition loop
+	SafeWrite8(0x5EBC8C, 0x50); // fixes broken counter for condition loop
+	PatchMemoryNop(0x5EBF5E, 6);// fixes broken counter for condition loop
+	PatchMemoryNop(0x5EBF64, 6); // fixes broken counter for condition loop
+	SafeWrite8(0x5EBF6A, 0x50); // fixes broken counter for condition loop
+	WriteRelJump(0x5EBAE0, (UInt32)PerkConditionsHook); // removes conditions that are not displayed from the list
+	WriteRelJump(0x5EBE40, (UInt32)PerkCommaHook); // fixes commas for multiple HasPerk requirements
+}
+
+

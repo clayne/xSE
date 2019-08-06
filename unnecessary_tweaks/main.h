@@ -22,7 +22,7 @@ void handleIniOptions();
 void patchPipboyClock(), patchSleepWaitClock(), patchPickupPrompt(), enableDeselectQuests(),
 enableContainerRespawnsWarning(), disableMapMarkerPopups(), showUnvisitedOrRespawnedCells(),
 fixDisintegrationsStat(), patchDateFormat(), hideEquippedItemsInContainers(), hideEquippedItemsInBarter(),
-patchFoodWornOffMessage();
+patchFoodWornOffMessage(), patchLevelUpMenu();
 double __fastcall ModifyLightItems(double itemWeight);
 bool fmod_d(double weight);
 float __fastcall GetExtraCount(TESObjectREFR* crosshairRef);
@@ -43,8 +43,9 @@ int bHideEquippedItemsInContainers = 0;
 int bHideEquippedItemsInBarter = 0;
 int bNoFoodWornOffMessage = 0;
 int bFixDisintegrationsStat = 0;
+int bFixPerkMenu = 0;
 void(*ApplyPerkModifiers)(UInt32 entryPointID, TESObjectREFR *perkOwner, void *arg3, ...) = (void(*)(UInt32, TESObjectREFR*, void*, ...))0x5E58F0;
-
+void __fastcall hideSubtitle();
 __declspec(naked) void PipboyClockHook() {
 	static const UInt32 retnAddr = 0x79AC5A;
 	static const char* fmt = "%s, %d:%02d %s";
@@ -311,7 +312,11 @@ _declspec(naked) void containerRespawnsHook2() {
 
 	}
 }
-
+__declspec(naked) void Tile::SetFloat(UInt32 id, float fltVal, bool bPropagate)
+{
+	static const UInt32 procAddr = 0xA012D0;
+	__asm	jmp		procAddr
+}
 _declspec (naked) void MapHook() {
 	static PlayerCharacter* g_thePlayer = *(PlayerCharacter**)0x11DEA3C;
 	static const UInt32 isMapMarkerSetSub = 0x798400;
@@ -441,4 +446,94 @@ __declspec (naked) void BarterMenuFilterHook() {
 		hide :
 		jmp hideAddr
 	}
+}
+
+__declspec(naked) void DateFormatYYMMDDHook() {
+	static const UInt32 retnAddr = 0x8679D8;
+	static const UInt32 GetYear = 0x867C60;
+	static const UInt32 GetMonth = 0x867D20;
+	static const UInt32 GetDay = 0x867D60;
+	__asm {
+		mov     ecx, [ebp-0x1C]
+		call    GetDay
+		movsx   edx, al
+		push    edx
+		mov     ecx, [ebp-0x1C]
+		call    GetMonth
+		add     eax, 1
+		push    eax
+		mov     ecx, [ebp-0x1C]
+		call    GetYear
+		xor     edx, edx
+		mov     ecx, 64h
+		div     ecx
+		push    edx
+		jmp retnAddr
+	}
+}
+tList<Condition>* __fastcall IsMoreConditions(tList<Condition> *list1) {
+	tList<Condition> *list = list1;
+	if (list->Count() > 1) {
+		ListNode<Condition>* traverse = list->Head();
+		Condition* target;
+		ActorValueInfo **g_actorValueInfoArray = (ActorValueInfo**)0x11D61C8;
+		do
+		{
+			target = traverse->data;
+			if (target->opcode == 0x1EF) {
+				UInt32* opcode = &target->opcode;
+				UInt32 avCode = opcode[1];
+				if (avCode == kAVCode_Karma || !g_actorValueInfoArray[avCode] || !(g_actorValueInfoArray[avCode]->avName.m_dataLen))
+					list->Remove(target);
+			}
+			else if (target->opcode != 0x1C1)
+				list->Remove(target);
+		} while (traverse = traverse->next);
+	}
+	return list;
+}
+__declspec(naked) void PerkConditionsHook() {
+	static const UInt32 retnAddr = 0x5EBAEB;
+	__asm {
+		mov ecx, [ebp-0xB4]
+		add ecx, 0x40
+		call IsMoreConditions
+		mov ecx, [ebp-0xB4]
+		add ecx, 0x40
+		mov ecx, eax
+		push 0
+		mov ecx, [ebp-0xB4]
+		add ecx, 0x40
+		jmp retnAddr
+	}
+}
+__declspec(naked) void PerkCommaHook() {
+	static const UInt32 retnAddr = 0x5EBE47;
+	static const UInt32 strcat = 0x5EBE54;
+	__asm {
+		mov     ecx, [ebp-0x94]
+		push    ecx
+		mov     ecx, [ebp-0xB4]
+		add     ecx, 0x40
+		mov		eax, 0x680F70
+		call	eax
+		test    eax, eax
+		jz done
+		jmp strcat
+		done:
+			cmp [ebp-0x94], 0
+			jmp retnAddr
+	}
+}
+static void PatchMemoryNop(ULONG_PTR Address, SIZE_T Size)
+{
+	DWORD d = 0;
+	VirtualProtect((LPVOID)Address, Size, PAGE_EXECUTE_READWRITE, &d);
+
+	for (SIZE_T i = 0; i < Size; i++)
+		*(volatile BYTE *)(Address + i) = 0x90; //0x90 == opcode for NOP
+
+	VirtualProtect((LPVOID)Address, Size, d, &d);
+
+	FlushInstructionCache(GetCurrentProcess(), (LPVOID)Address, Size);
 }
